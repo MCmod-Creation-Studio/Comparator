@@ -6,6 +6,8 @@
 // @author       寒冽
 // @match        *://admin.mcmod.cn/*
 // @icon         https://www.mcmod.cn/favicon.ico
+// @updateURL    https://raw.githubusercontent.com/MCmod-Creation-Studio/Comparator/main/comparator.user.js
+// @downloadURL  https://raw.githubusercontent.com/MCmod-Creation-Studio/Comparator/main/comparator.user.js
 // @grant        none
 // ==/UserScript==
 (function () {
