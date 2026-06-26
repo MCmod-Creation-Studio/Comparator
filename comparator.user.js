@@ -302,7 +302,7 @@
 
         // 检测是否为纯文本（低 HTML 标签密度）：避免 splitHTML 对纯文本产生爆炸级 token 数量
         var tagCount = (left.match(/</g) || []).length + (right.match(/</g) || []).length;
-        if (totalLen > 50000 || tagCount < totalLen / 150) {
+        if (totalLen > 500000 || tagCount < totalLen / 150) {
             diff = diffLines(left, right);
         } else {
             diff = diffHTML(left, right);
