@@ -103,7 +103,7 @@
             result.push({ added: true, value: midB.join(sep) });
         } else if (midM === 0) {
             result.push({ removed: true, value: midA.join(sep) });
-        } else if (midN * midM > 1000000 || midN > 10000 || midM > 10000) {
+        } else if (midN * midM > 10000000 || midN > 100000 || midM > 100000) {
             result.push({ truncated: true, value: '<p style="color:#856404;background:#fff3cd;padding:4px 8px;margin:4px 0;border-radius:3px;white-space:normal"><b>\u26A0 内容过长，已简化对比</b>（仅显示全部旧版/全部新版）</p>' });
             result.push({ removed: true, value: midA.join(sep) });
             result.push({ added: true, value: midB.join(sep) });
