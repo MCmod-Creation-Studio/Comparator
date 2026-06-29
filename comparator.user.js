@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         后台审核对比
 // @namespace    http://mcmod.cn/
-// @version      2.1
+// @version      2.1.1
 // @description  MC百科后台审核对比（内置 diff 算法，HTML标记感知，支持格式变更高亮）
 // @author       寒冽
 // @match        *://admin.mcmod.cn/*
