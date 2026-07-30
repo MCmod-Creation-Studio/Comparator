@@ -354,17 +354,17 @@
     // ========== 主逻辑 ==========
 
     new MutationObserver(function () {
-        if (document.querySelector("div.verify-action-btns") && !document.getElementById("diff-btn")) {
+        if (document.querySelector("div.verify-action-btns, div.assistant-action-btns") && !document.getElementById("diff-btn")) {
             insertCompareButton();
         }
     }).observe(document.body, { childList: true, subtree: true });
 
-    if (document.querySelector("div.verify-action-btns")) {
+    if (document.querySelector("div.verify-action-btns, div.assistant-action-btns")) {
         insertCompareButton();
     }
 
     function insertCompareButton() {
-        var actionDiv = document.querySelector("div.verify-action-btns");
+        var actionDiv = document.querySelector("div.verify-action-btns, div.assistant-action-btns");
         if (!actionDiv) return;
         if (document.getElementById("diff-btn")) return;
 
