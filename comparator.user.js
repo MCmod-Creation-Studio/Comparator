@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         后台审核对比
-// @namespace    http://mcmod.cn/
-// @version      2.1.1
+// @namespace    https://mcmod.cn/
+// @version      2.1.2
 // @description  MC百科后台审核对比（内置 diff 算法，HTML标记感知，支持格式变更高亮）
 // @author       寒冽
 // @match        *://admin.mcmod.cn/*
@@ -188,6 +188,128 @@
         return merged;
     }
 
+    // ========== 大块增删的细粒度细化 ==========
+    // 当 diff 将一个整行/整块标记为 removed + added 时，
+    // 若两者文本共享大量内容（如 "Forge" vs "Forge / NeoForge"），
+    // 在字符级重新对齐，仅标记真正变化的部分，避免共同内容被整块划删除/新增。
+
+    function fineTokens(str) {
+        var tokens = [];
+        var i = 0;
+        var n = str.length;
+        while (i < n) {
+            var ch = str[i];
+            if (/\s/.test(ch)) {
+                var j = i + 1;
+                while (j < n && /\s/.test(str[j])) j++;
+                tokens.push(str.slice(i, j));
+                i = j;
+            } else if (/[A-Za-z0-9]/.test(ch)) {
+                var k = i + 1;
+                while (k < n && /[A-Za-z0-9]/.test(str[k])) k++;
+                tokens.push(str.slice(i, k));
+                i = k;
+            } else {
+                tokens.push(ch);
+                i++;
+            }
+        }
+        return tokens;
+    }
+
+    function refineTextPair(removedValue, addedValue) {
+        // 仅细化纯文本；含 HTML 标签的内容交给外层 token 级 diff
+        if (removedValue.indexOf('<') >= 0 || addedValue.indexOf('<') >= 0) return null;
+        var A = fineTokens(removedValue);
+        var B = fineTokens(addedValue);
+        var n = A.length;
+        var m = B.length;
+        if (n === 0 || m === 0) return null;
+        if (n * m > 2000000) return null;
+
+        var table = new Array(n + 1);
+        for (var i = 0; i <= n; i++) {
+            table[i] = new Array(m + 1);
+            for (var j = 0; j <= m; j++) {
+                table[i][j] = 0;
+            }
+        }
+        for (var i = 1; i <= n; i++) {
+            var row = table[i];
+            var prev = table[i - 1];
+            for (var j = 1; j <= m; j++) {
+                if (A[i - 1] === B[j - 1]) {
+                    row[j] = prev[j - 1] + 1;
+                } else {
+                    row[j] = prev[j] > row[j - 1] ? prev[j] : row[j - 1];
+                }
+            }
+        }
+        if (table[n][m] === 0) return null; // 无共同内容，细化无意义
+
+        var result = [];
+        var i = n, j = m;
+        var removedBuffer = [];
+        var addedBuffer = [];
+
+        function flush() {
+            if (addedBuffer.length > 0) {
+                result.unshift({ added: true, value: addedBuffer.reverse().join('') });
+                addedBuffer = [];
+            }
+            if (removedBuffer.length > 0) {
+                result.unshift({ removed: true, value: removedBuffer.reverse().join('') });
+                removedBuffer = [];
+            }
+        }
+
+        while (i > 0 || j > 0) {
+            if (i > 0 && j > 0 && A[i - 1] === B[j - 1]) {
+                flush();
+                result.unshift({ value: A[i - 1] });
+                i--; j--;
+            } else if (j > 0 && (i === 0 || table[i][j - 1] >= table[i - 1][j])) {
+                addedBuffer.push(B[j - 1]);
+                j--;
+            } else {
+                removedBuffer.push(A[i - 1]);
+                i--;
+            }
+        }
+        flush();
+
+        return result;
+    }
+
+    function refineAdjacentPairs(diff) {
+        var result = [];
+        for (var i = 0; i < diff.length; i++) {
+            var part = diff[i];
+            if (part.removed && !part.formatChange && !part.truncated && i + 1 < diff.length) {
+                var next = diff[i + 1];
+                if (next.added && !next.formatChange && !next.truncated) {
+                    var refined = refineTextPair(part.value, next.value);
+                    if (refined && refined.length > 0) {
+                        for (var k = 0; k < refined.length; k++) {
+                            var rp = refined[k];
+                            var last = result.length > 0 ? result[result.length - 1] : null;
+                            if (rp.value !== undefined && !rp.added && !rp.removed && last &&
+                                last.value !== undefined && !last.added && !last.removed && !last.truncated) {
+                                last.value += rp.value;
+                            } else {
+                                result.push(rp);
+                            }
+                        }
+                        i++;
+                        continue;
+                    }
+                }
+            }
+            result.push(part);
+        }
+        return result;
+    }
+
     function diffLines(oldStr, newStr) {
         return diffTokens(oldStr.split('\n'), newStr.split('\n'), '\n');
     }
@@ -328,6 +450,9 @@
                 }
             }
         }
+
+        // 细粒度细化：把大块增删中共同的内容拆出，仅标记真正变化的部分
+        diff = refineAdjacentPairs(diff);
 
         // 拆分块级元素，避免 <ins>/<del> 包裹块级标签导致浏览器解析异常
         diff = splitAddedRemovedAtBlocks(diff);
